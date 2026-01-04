@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Decision Science Lab</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f4f6f9; color: #333; font-family: 'Segoe UI', system-ui, sans-serif; }
+        .metric-box { background: #fff; border-radius: 10px; padding: 20px; text-align: center; border: 1px solid #e1e4e8; box-shadow: 0 2px 4px rgba(0,0,0,0.02); height: 100%; }
+        .stat-label { font-size: 0.7rem; color: #6c757d; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; margin-bottom: 5px; }
+        .big-number { font-size: 2.8rem; font-weight: 800; line-height: 1; margin-bottom: 5px; }
+        .context-text { font-size: 0.8rem; color: #666; margin-top: 10px; padding-top: 10px; border-top: 1px solid #f0f0f0; }
+        
+        /* Strategy Cards - 4 Column Layout Optimized */
+        .strategy-card { border: none; border-radius: 12px; height: 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.03); overflow: hidden; background: #fff; }
+        .strategy-header { padding: 12px 20px; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; color: #fff; }
+        .strategy-body { padding: 20px; }
+        .concept-tag { font-size: 0.65rem; font-weight: 800; color: #adb5bd; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 8px; }
+        
+        .table-custom th { background: #f8f9fa; font-size: 0.75rem; text-transform: uppercase; color: #6c757d; cursor: help; }
+        .table-custom td { font-size: 0.85rem; vertical-align: middle; }
+        .history-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin: 0 3px; }
+        .dot-H { background: #198754; } .dot-T { background: #0d6efd; }
+    </style>
+</head>
+<body class="py-4 px-4">
+<div class="container-fluid" style="max-width: 1400px;">
+
+    <div class="card shadow-sm mb-4 border-0">
+        <div class="card-body py-3 d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <div class="bg-dark text-white rounded-circle p-3 me-3"><i class="bi bi-hand-index-thumb fs-4"></i></div>
+                <div><h5 class="mb-0 fw-bold">Manual Sandbox</h5><small class="text-muted">Test probability yourself</small></div>
+            </div>
+            <div class="text-center">
+                <div class="mb-2">{% for h in manual.hist %}<span class="history-dot dot-{{ h }}"></span>{% endfor %}</div>
+                <span class="badge bg-light text-dark border">Heads: {{ manual.h }}</span>
+                <span class="badge bg-light text-dark border">Tails: {{ manual.t }}</span>
+                {% if manual.s > 1 %}
+                    <span class="badge bg-warning text-dark border ms-2">Streak: {{ manual.s }}</span>
+                    {% if rarity %}<span class="badge bg-info text-white ms-1" title="Global Rarity: How rare this streak is">{{ rarity }}</span>{% endif %}
+                {% endif %}
+            </div>
+            <div>
+                <form action="/manual/flip" method="post" class="d-inline"><button class="btn btn-dark fw-bold px-4 rounded-pill">FLIP</button></form>
+                <form action="/manual/reset" method="post" class="d-inline ms-2"><button class="btn btn-outline-secondary btn-sm rounded-pill">Reset</button></form>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-primary mb-0">
+                {% if mode == 'global' %}<i class="bi bi-globe me-2"></i>Global Archive{% else %}<i class="bi bi-cpu me-2"></i>User Session{% endif %}
+            </h2>
+            <p class="text-muted mb-0 small">{% if mode == 'global' %}Aggregated history from all runs{% else %}Data from your current active batch{% endif %}</p>
+        </div>
+        <div class="btn-group shadow-sm">
+            <a href="/" class="btn {% if mode == 'user' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">My Session</a>
+            <a href="/global" class="btn {% if mode == 'global' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">Global Archive</a>
+            <a href="/run" class="btn btn-primary fw-bold ms-2">+ Run 100</a>
+            <a href="/archive" class="btn btn-outline-danger ms-2" data-bs-toggle="tooltip" title="Archive current session and clear dashboard"><i class="bi bi-trash"></i> Reset</a>
+        </div>
+    </div>
+
+    {% if count and count > 0 %}
+    
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="metric-box bg-dark text-white border-0 py-4">
+                <div class="stat-label text-white-50" data-bs-toggle="tooltip" title="Number of games played to completion (returned to zero)">Total Simulations</div>
+                <div class="big-number mb-0">{{ count }}</div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="metric-box bg-secondary text-white border-0 py-4">
+                <div class="stat-label text-white-50" data-bs-toggle="tooltip" title="Total individual coin flips across all simulations">Total Coin Flips</div>
+                <div class="big-number mb-0">{{ "{:,}".format(total_flips) }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-5">
+        <div class="col-xl-3 col-md-6">
+            <div class="metric-box border-success" style="border-top: 4px solid #198754;">
+                <div class="stat-label text-success" data-bs-toggle="tooltip" title="The record streak achieved with the highest luck/efficiency">Heads (Efficiency Record)</div>
+                <div class="big-number text-success">{{ champs.h_fast.streak if champs.h_fast else '-' }}</div>
+                {% if champs.h_fast %}
+                <div class="context-text">
+                    <strong>⚡ {{ champs.h_fast.metric_label }}</strong>: Flip #{{ champs.h_fast.metric_val }}<br>
+                    <small class="text-success">{{ champs.h_fast.context_val }} (Luck Factor)</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="metric-box border-success" style="border-top: 4px solid #198754;">
+                <div class="stat-label text-success" data-bs-toggle="tooltip" title="The highest streak found in the longest, grindiest game">Heads (Max Streak Record)</div>
+                <div class="big-number text-success">{{ champs.h_long.streak if champs.h_long else '-' }}</div>
+                {% if champs.h_long %}
+                <div class="context-text">
+                    <strong>🐌 {{ champs.h_long.metric_label }}</strong>: {{ champs.h_long.metric_val }}<br>
+                    <small>{{ champs.h_long.context_label }}: {{ champs.h_long.context_val }}</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="metric-box border-primary" style="border-top: 4px solid #0d6efd;">
+                <div class="stat-label text-primary" data-bs-toggle="tooltip" title="The record streak achieved with the highest luck/efficiency">Tails (Efficiency Record)</div>
+                <div class="big-number text-primary">{{ champs.t_fast.streak if champs.t_fast else '-' }}</div>
+                {% if champs.t_fast %}
+                <div class="context-text">
+                    <strong>⚡ {{ champs.t_fast.metric_label }}</strong>: Flip #{{ champs.t_fast.metric_val }}<br>
+                    <small class="text-primary">{{ champs.t_fast.context_val }} (Luck Factor)</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="metric-box border-primary" style="border-top: 4px solid #0d6efd;">
+                <div class="stat-label text-primary" data-bs-toggle="tooltip" title="The highest streak found in the longest, grindiest game">Tails (Max Streak Record)</div>
+                <div class="big-number text-primary">{{ champs.t_long.streak if champs.t_long else '-' }}</div>
+                {% if champs.t_long %}
+                <div class="context-text">
+                    <strong>🐌 {{ champs.t_long.metric_label }}</strong>: {{ champs.t_long.metric_val }}<br>
+                    <small>{{ champs.t_long.context_label }}: {{ champs.t_long.context_val }}</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-5">
+        <div class="d-flex justify-content-center mb-3">
+            <button class="btn btn-outline-dark fw-bold w-100 collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#conceptsContent">
+                <i class="bi bi-lightbulb-fill me-2"></i>Toggle "Concepts to Consider"
+            </button>
+        </div>
+        
+        <div class="collapse" id="conceptsContent">
+            <div class="row g-4">
+                
+                <div class="col-xl-3 col-md-6">
+                    <div class="strategy-card">
+                        <div class="strategy-header bg-secondary text-white bg-gradient">Statistical Symmetry</div>
+                        <div class="strategy-body">
+                            <span class="concept-tag">LAW OF LARGE NUMBERS</span>
+                            <p class="small">Notice how the Heads/Tails records track closely? This proves the randomness is "Fair."</p>
+                            <div class="alert alert-secondary border-0 small mb-0">
+                                <strong>Lesson:</strong> Fairness implies equal risk, not safety. A "Heads Debt" is just as sticky as a "Tails Debt."
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6">
+                    <div class="strategy-card">
+                        <div class="strategy-header bg-danger text-white bg-gradient">The Volatility Trap</div>
+                        <div class="strategy-body">
+                            <span class="concept-tag">POWER LAW VARIANCE</span>
+                            <p class="small">Why does "Longest Game" jump from 100 to 350+ with just 1 extra streak?</p>
+                            <div class="alert alert-danger border-0 small mb-0">
+                                <strong>Lesson:</strong> Risk scales exponentially. One small error (Streak +1) creates a massive "Debt" (Time +200%).
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6">
+                    <div class="strategy-card">
+                        <div class="strategy-header bg-warning text-dark bg-gradient">Opportunity Cost</div>
+                        <div class="strategy-body">
+                            <span class="concept-tag">COST OF STUBBORNNESS</span>
+                            <p class="small">Waiting for a "Loose" game (>10 dev) to return to zero costs time you can't get back.</p>
+                            <div class="alert alert-warning border-0 small mb-0">
+                                <strong>Data:</strong> Stubbornness costs <strong>{{ stubborn.cost_max }}x</strong> more effort than simply resetting early.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6">
+                    <div class="strategy-card">
+                        <div class="strategy-header bg-success text-white bg-gradient">Signal vs. Noise</div>
+                        <div class="strategy-body">
+                            <span class="concept-tag">GAMBLER'S FALLACY</span>
+                            <p class="small">A record streak can arrive instantly (Efficiency) or after 50k flips (Churn).</p>
+                            <div class="alert alert-success border-0 small mb-0">
+                                <strong>Lesson:</strong> Short-term results are often noise. Don't confuse "Luck" (Fastest) with "Strategy."
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-success text-white fw-bold">Heads Analysis</div>
+                <div class="card-body p-0">
+                    <table class="table table-striped table-custom mb-0">
+                        <thead>
+                            <tr>
+                                <th data-bs-toggle="tooltip" title="Consecutive Heads">Streak</th>
+                                <th data-bs-toggle="tooltip" title="Avg flip # where this streak first appears">Avg Arr</th>
+                                <th data-bs-toggle="tooltip" title="Earliest flip # this streak started">Q-Start</th>
+                                <th data-bs-toggle="tooltip" title="Total flips to Return to Zero. Minimum = 2x Streak (Up + Down).">Shortest</th>
+                                <th data-bs-toggle="tooltip" title="Most total flips to finish a game with this streak">Longest</th>
+                            </tr>
+                        </thead>
+                        <tbody>{% for row in h_tab %}<tr><td>{{ row.streak }}</td><td>{{ row.avg_arr }}</td><td class="text-success">{{ row.min_start }}</td><td>{{ row.min_dur }}</td><td class="text-danger">{{ row.max_dur }}</td></tr>{% endfor %}</tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-primary text-white fw-bold">Tails Analysis</div>
+                <div class="card-body p-0">
+                    <table class="table table-striped table-custom mb-0">
+                        <thead>
+                            <tr>
+                                <th data-bs-toggle="tooltip" title="Consecutive Tails">Streak</th>
+                                <th data-bs-toggle="tooltip" title="Avg flip # where this streak first appears">Avg Arr</th>
+                                <th data-bs-toggle="tooltip" title="Earliest flip # this streak started">Q-Start</th>
+                                <th data-bs-toggle="tooltip" title="Total flips to Return to Zero. Minimum = 2x Streak (Up + Down).">Shortest</th>
+                                <th data-bs-toggle="tooltip" title="Most total flips to finish a game with this streak">Longest</th>
+                            </tr>
+                        </thead>
+                        <tbody>{% for row in t_tab %}<tr><td>{{ row.streak }}</td><td>{{ row.avg_arr }}</td><td class="text-success">{{ row.min_start }}</td><td>{{ row.min_dur }}</td><td class="text-danger">{{ row.max_dur }}</td></tr>{% endfor %}</tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-secondary text-white fw-bold">Deviation Cost</div>
+                <div class="card-body p-0">
+                    <table class="table table-striped table-custom mb-0">
+                        <thead>
+                            <tr>
+                                <th data-bs-toggle="tooltip" title="Distance from Zero (Equilibrium)">Dev</th>
+                                <th data-bs-toggle="tooltip" title="Avg flips to return to Zero">Avg Return</th>
+                                <th data-bs-toggle="tooltip" title="Difficulty multiplier relative to Dev 1">Multiplier</th>
+                            </tr>
+                        </thead>
+                        <tbody>{% for row in d_tab %}<tr><td>{{ row.dist }}</td><td>{{ row.avg }}</td><td class="fw-bold">{{ row.mult }}x</td></tr>{% endfor %}</tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <div class="text-center py-5">
+        <h3 class="text-muted">No Data Available</h3>
+        <a href="/run" class="btn btn-primary btn-lg">Run 100 Rounds</a>
+    </div>
+    {% endif %}
+
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    })
+</script>
+</body>
+</html>

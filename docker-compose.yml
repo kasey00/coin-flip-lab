@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  # 1. The Database Service
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: coinuser
+      POSTGRES_PASSWORD: coinpassword
+      POSTGRES_DB: coindb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - coin-network
+
+  # 2. The Web Application Service
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      # Connection string to talk to the 'db' service above
+      DATABASE_URL: postgresql://coinuser:coinpassword@db:5432/coindb
+    depends_on:
+      - db
+    networks:
+      - coin-network
+
+# Define the persistent volume for the DB
+volumes:
+  postgres_data:
+
+# Define the internal network
+networks:
+  coin-network:
