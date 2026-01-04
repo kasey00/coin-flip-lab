@@ -26,8 +26,8 @@ The app generates massive datasets (1B+ flips) to visualize:
 ### Run the App
 1.  **Clone the repository:**
     ```bash
-    git clone [https://github.com/kasey00/coin-flip-lab.git](https://github.com/kasey00/coin-flip-lab.git)
-    cd coin-flip-lab
+    git clone https://github.com/kasey00/coin-flip-lab.git
+cd coin-flip-lab
     ```
 
 2.  **Start the container:**
